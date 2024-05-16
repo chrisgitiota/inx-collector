@@ -19,6 +19,8 @@ const (
 	ParameterBlockID = "blockId"
 	// ParameterWithPOI is used to identify wether a get request should recover also the POI.
 	ParameterWithPOI = "withPOI"
+	// ParameterCheckExistence is used to only check the existence of an object. Only true or false is returned.
+	ParameterCheckExistence = "checkExistence"
 	// ParameterPrivate is used to identify wether a get request should use a private bucket.
 	ParameterPrivate = "private"
 	// ParameterUserId is used to identify the user id for a private request.
@@ -47,6 +49,13 @@ func (s *Server) setupRoutes(e *echo.Echo) {
 		params, err := s.parseObjectInput(c)
 		if err != nil {
 			return httpserver.JSONResponse(c, http.StatusBadRequest, fmt.Sprintf("%v", err))
+		}
+		if params.CheckExistence {
+			resp, err := s.checkIfObjectExists(params.BlockId, params.BucketName)
+			if err != nil {
+				return httpserver.JSONResponse(c, http.StatusBadRequest, fmt.Sprintf("%v", err))
+			}
+			return httpserver.JSONResponse(c, http.StatusOK, &resp)
 		}
 		if params.WithPOI {
 			resp, err := s.getBlockWithPOI(params.BlockId, params.BucketName, c)
@@ -156,6 +165,15 @@ func (s *Server) getObjectFromStorage(blockId string, bucketName string) (storag
 		return object, err
 	}
 	return object, nil
+}
+
+func (s *Server) checkIfObjectExists(blockId string, bucketName string) (bool, error) {
+	_, err := s.Collector.Storage.GetObjectTagging(bucketName, blockId, s.Context)
+	if err != nil {
+		return false, err
+	} else {
+		return true, err
+	}
 }
 
 func (s *Server) storeBlockFromTangle(c echo.Context) (string, string, error) {

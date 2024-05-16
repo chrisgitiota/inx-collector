@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/iotaledger/datapayloads.go"
 	"github.com/iotaledger/hive.go/core/logger"
@@ -157,7 +158,12 @@ func (l *Listener) checkFilterExpired(filterId string) bool {
 func (l *Listener) checkAndStore(taggedData iotago.TaggedData, filterId string, block *iotago.Block, blockId inx.BlockId, ctx context.Context) error {
 	var err error
 	filter := l.Filters[filterId]
-	if string(taggedData.Tag) == filter.Tag {
+	taggedDataStr := string(taggedData.Tag)
+	if len(taggedDataStr) > 0 {
+		l.WrappedLogger.LogDebugf("Received block with tag: %w", taggedDataStr)
+	}
+
+	if filter.TagIsPrefix && strings.HasPrefix(taggedDataStr, filter.Tag) || taggedDataStr == filter.Tag {
 		if filter.Duration != "" {
 			// checks if the filter expired, if it is, skips and removes the filter
 			if l.checkFilterExpired(filterId) {
@@ -194,7 +200,8 @@ func (l *Listener) checkAndStore(taggedData iotago.TaggedData, filterId string, 
 		} else {
 			object.Block = block
 		}
-		err = l.Storage.UploadObject(blockIdStr, filter.BucketName, object, ctx)
+		var s3_name = hex.EncodeToString(taggedData.Tag)
+		err = l.Storage.UploadObject(s3_name, filter.BucketName, object, ctx)
 		if err != nil {
 			err = fmt.Errorf("can't upload the block '%s', error: %w", blockIdStr, err)
 			return err

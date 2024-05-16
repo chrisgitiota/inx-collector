@@ -37,6 +37,7 @@ type ObjectParams struct {
 	BlockId    string
 	BucketName string
 	WithPOI    bool
+	CheckExistence bool
 }
 
 func extractRequestBody[Request RequestConstraint](request *Request, c echo.Context) error {
@@ -70,6 +71,12 @@ func (s Server) parseObjectInput(c echo.Context) (ObjectParams, error) {
 	}
 	if c.Request().Form.Has(ParameterWithPOI) {
 		params.WithPOI, err = strconv.ParseBool(c.QueryParam(ParameterWithPOI))
+		if err != nil {
+			return params, err
+		}
+	}
+	if c.Request().Form.Has(ParameterCheckExistence) {
+		params.CheckExistence, err = strconv.ParseBool(c.QueryParam(ParameterCheckExistence))
 		if err != nil {
 			return params, err
 		}

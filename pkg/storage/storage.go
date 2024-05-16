@@ -7,6 +7,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
+	"github.com/minio/minio-go/v7/pkg/tags"
 )
 
 type Storage struct {
@@ -64,7 +65,7 @@ func (s *Storage) CreateBucket(bucketName string, ctx context.Context) error {
 		return err
 	}
 
-	s.WrappedLogger.LogInfof("Creating bucket '%s' ... done", bucketName)
+	s.WrappedLogger.LogDebugf("Creating bucket '%s' ... done", bucketName)
 	return nil
 }
 
@@ -87,7 +88,7 @@ func (s *Storage) SetBucketExpirationDays(bucketName string, days int, ctx conte
 	}
 	err := s.client.SetBucketLifecycle(ctx, bucketName, config)
 	if err != nil {
-		s.WrappedLogger.LogInfof("Failed setting lifecycle for bucket '%s', error: %w", bucketName, err)
+		s.WrappedLogger.LogErrorf("Failed setting lifecycle for bucket '%s', error: %w", bucketName, err)
 	}
 	return nil
 }
@@ -142,12 +143,24 @@ func (s *Storage) GetObject(bucketName string, objectName string, ctx context.Co
 	s.WrappedLogger.LogInfof("Retrieving object '%s' from bucket '%s' ... ", objectName, bucketName)
 	object, err := s.client.GetObject(ctx, bucketName, objectName+s.objectExtension, minio.GetObjectOptions{})
 	if err != nil {
-		s.WrappedLogger.LogInfof("Retrieving object '%s' from bucket '%s' ... failed, error: %w", objectName, bucketName, err)
+		s.WrappedLogger.LogErrorf("Retrieving object '%s' from bucket '%s' ... failed, error: %w", objectName, bucketName, err)
 		return nil, err
 	}
 
-	s.WrappedLogger.LogInfof("Retrieving object '%s' from bucket '%s' ... done", objectName, bucketName)
+	s.WrappedLogger.LogDebugf("Retrieving object '%s' from bucket '%s' ... done", objectName, bucketName)
 	return object, nil
+}
+
+func (s *Storage) GetObjectTagging(bucketName string, objectName string, ctx context.Context) (*tags.Tags, error) {
+	s.WrappedLogger.LogInfof("Retrieving Tags for object '%s' from bucket '%s' ... ", objectName, bucketName)
+	tags, err := s.client.GetObjectTagging(ctx, bucketName, objectName+s.objectExtension, minio.GetObjectTaggingOptions{})
+	if err != nil {
+		s.WrappedLogger.LogErrorf("Retrieving Tags for object '%s' from bucket '%s' ... failed, error: %w", objectName, bucketName, err)
+		return nil, err
+	}
+
+	s.WrappedLogger.LogDebugf("Retrieving Tags for object '%s' from bucket '%s' ... done", objectName, bucketName)
+	return tags, nil
 }
 
 func (s *Storage) DeleteObject(bucketName string, objectName string, ctx context.Context) error {

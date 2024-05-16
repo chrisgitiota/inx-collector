@@ -18,6 +18,7 @@ type Filter struct {
 	Id               string `json:"id,omitempty"`
 	BucketName       string `json:"bucketName,omitempty"`
 	WithPOI          bool   `json:"withPOI,omitempty"`
+	TagIsPrefix      bool   `json:"tagIsPrefix,omitempty"`
 	Duration         string `json:"duration,omitempty"`
 	Expiration       time.Time
 	PublicKeyDecoded crypto.PublicKey

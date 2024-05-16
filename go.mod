@@ -97,7 +97,7 @@ require (
 	github.com/labstack/echo/v4 v4.9.0
 	github.com/stretchr/testify v1.8.1 // indirect
 	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.0.0-20220919091848-fb04ddd9f9c8 // indirect
+	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	google.golang.org/genproto v0.0.0-20220923205249-dd2d53f1fffc // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
