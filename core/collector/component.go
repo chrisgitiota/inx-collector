@@ -66,6 +66,7 @@ func provide(c *dig.Container) error {
 			*ParamsStorage,
 			*ParamsListener,
 			*ParamsPOI,
+			*ParamsPeerCollector,
 		)
 	}); err != nil {
 		return err
@@ -160,6 +161,25 @@ func run() error {
 
 	}, daemon.PriorityStopRestAPI); err != nil {
 		CoreComponent.LogPanicf("failed to start worker: %s", err)
+	}
+
+
+	// create a background worker that handles the peercollector synchronization
+	if err := CoreComponent.Daemon().BackgroundWorker("PEERCOLLECTOR", func(ctx context.Context) {
+		CoreComponent.LogInfo("Start peercollector worker - waiting for collectorInitWait")
+
+		// we need to wait until the collector is initialized
+		select {
+		case <-ctx.Done():
+			return
+		case <-collectorInitWait:
+		}
+
+		go func() {
+			deps.Collector.PeerCollectorHandler.SynchronizationLoop(ctx, 30*time.Second)
+		}()
+	}, daemon.PriorityStopPeerCollectorSync); err != nil {
+		CoreComponent.LogPanicf("Failed to start PeerCollector Synchronization Loop: %s", err)
 	}
 
 	return nil

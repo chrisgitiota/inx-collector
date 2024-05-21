@@ -25,4 +25,10 @@ type Parameters struct {
 
 	// Secure defines whether the connection to S3 storage should be secure
 	Secure bool `default:"true" usage:"whether the connection to storage should be secure"`
+
+	// Defines the bucket name for the list of object-keys, received from the peer collector, that need to be validated in the local database
+	ObjectsInspectionListBucketName string `default:"objects-inspection-list" usage:"bucket name for the list of object-keys, received from the peer collector, that need to be validated in the local database"`
+
+	// Defines the bucket name for local object keys that need to to be communicated to the peer collector for objects-inspection purposes
+	KeysToSendToPeerCollectorBucketName string `default:"keys-to-send-to-peer-collector" usage:"bucket name for local object keys that need to to be communicated to the peer collector for objects-inspection purposes"`
 }

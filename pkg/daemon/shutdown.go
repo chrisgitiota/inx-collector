@@ -4,4 +4,5 @@ const (
 	PriorityDisconnectINX = iota // no dependencies
 	PriorityStopCollector
 	PriorityStopRestAPI
+	PriorityStopPeerCollectorSync
 )

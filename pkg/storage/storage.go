@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-
+	"bytes"
 	"github.com/iotaledger/hive.go/core/logger"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -12,11 +12,14 @@ import (
 
 type Storage struct {
 	*logger.WrappedLogger
-	client                      *minio.Client
-	DefaultBucketName           string
-	DefaultBucketExpirationDays int
-	region                      string
-	objectExtension             string
+	client                      			*minio.Client
+	DefaultBucketName           			string
+	ObjectsInspectionListBucketName 		string
+	KeysToSendToPeerCollectorBucketName 	string
+	DefaultBucketExpirationDays 			int
+	region                      			string
+	objectExtension             			string
+	PeerCollectorUrl						string
 }
 
 func NewStorage(params Parameters, log *logger.WrappedLogger) (Storage, error) {
@@ -31,12 +34,14 @@ func NewStorage(params Parameters, log *logger.WrappedLogger) (Storage, error) {
 	}
 
 	storage := Storage{
-		WrappedLogger:               logger.NewWrappedLogger(log.LoggerNamed("Storage")),
-		client:                      client,
-		DefaultBucketName:           params.DefaultBucketName,
-		DefaultBucketExpirationDays: params.DefaultBucketExpirationDays,
-		region:                      params.Region,
-		objectExtension:             params.ObjectExtension,
+		WrappedLogger:               			logger.NewWrappedLogger(log.LoggerNamed("Storage")),
+		client:                      			client,
+		DefaultBucketName:           			params.DefaultBucketName,
+		ObjectsInspectionListBucketName: 		params.ObjectsInspectionListBucketName,
+		KeysToSendToPeerCollectorBucketName: 	params.KeysToSendToPeerCollectorBucketName,
+		DefaultBucketExpirationDays: 			params.DefaultBucketExpirationDays,
+		region:                      			params.Region,
+		objectExtension:             			params.ObjectExtension,
 	}
 
 	return storage, nil
@@ -151,6 +156,29 @@ func (s *Storage) GetObject(bucketName string, objectName string, ctx context.Co
 	return object, nil
 }
 
+
+func (s *Storage) GetObjectsInspectionList(ctx context.Context) <-chan minio.ObjectInfo {
+	objectCh := s.client.ListObjects(ctx, s.ObjectsInspectionListBucketName, minio.ListObjectsOptions{
+		Recursive: true,
+	})
+	return objectCh
+}
+
+func (s *Storage) GetKeysToBeSendToPeerCollector(ctx context.Context) <-chan minio.ObjectInfo {
+	objectCh := s.client.ListObjects(ctx, s.KeysToSendToPeerCollectorBucketName, minio.ListObjectsOptions{
+		Recursive: true,
+	})
+	return objectCh
+}
+
+func (s *Storage) DeleteObjectNameFromObjectsInspectionList(objectName string, ctx context.Context) error {
+	return s.client.RemoveObject(ctx, s.ObjectsInspectionListBucketName, objectName, minio.RemoveObjectOptions{})
+}
+
+func (s *Storage) DeleteObjectNameFromKeysToSendToPeerCollectorList(objectName string, ctx context.Context) error {
+	return s.client.RemoveObject(ctx, s.KeysToSendToPeerCollectorBucketName, objectName, minio.RemoveObjectOptions{})
+}
+
 func (s *Storage) GetObjectTagging(bucketName string, objectName string, ctx context.Context) (*tags.Tags, error) {
 	s.WrappedLogger.LogInfof("Retrieving Tags for object '%s' from bucket '%s' ... ", objectName, bucketName)
 	tags, err := s.client.GetObjectTagging(ctx, bucketName, objectName+s.objectExtension, minio.GetObjectTaggingOptions{})
@@ -165,4 +193,19 @@ func (s *Storage) GetObjectTagging(bucketName string, objectName string, ctx con
 
 func (s *Storage) DeleteObject(bucketName string, objectName string, ctx context.Context) error {
 	return s.client.RemoveObject(ctx, bucketName, objectName+s.objectExtension, minio.RemoveObjectOptions{})
+}
+
+func (s *Storage) UploadObjectNameToBucket(bucketName string, objectName string, ctx context.Context) error {
+	emptyJsonBytes := []byte("{}")
+	emptyJsonReader := bytes.NewReader(emptyJsonBytes)
+
+	s.WrappedLogger.LogInfof("Uploading objectName '%s' to bucket '%s' ...", objectName, bucketName)
+	_, err := s.client.PutObject(ctx, bucketName, objectName, emptyJsonReader, emptyJsonReader.Size(), minio.PutObjectOptions{ContentType: "application/json"})
+	if err != nil {
+		s.WrappedLogger.LogErrorf("Uploading objectName '%s' to bucket '%s' ... failed, error: %w", objectName, bucketName, err)
+		return err
+	}
+
+	s.WrappedLogger.LogInfof("Uploading objectName '%s' to bucket '%s' ... done", objectName, bucketName)
+	return nil
 }

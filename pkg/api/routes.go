@@ -32,12 +32,13 @@ const (
 	// ParameterLifecycleDays is used to express the number of days before data expiration in the bucket.
 	ParameterLifecycleDays = "days"
 
-	RouteGetBlock     = "/block/:" + ParameterBlockID
-	RouteDeleteBlock  = "/block/:" + ParameterBlockID
-	RouteStore        = "/block"
-	RouteSubscribe    = "/filter"
-	RouteUnsubscribe  = "/filter/:" + ParameterFilterId
-	RouteCreateBucket = "/bucket"
+	RouteGetBlock     			= "/block/:" + ParameterBlockID
+	RouteDeleteBlock  			= "/block/:" + ParameterBlockID
+	RouteStore        			= "/block"
+	RouteSubscribe    			= "/filter"
+	RouteUnsubscribe  			= "/filter/:" + ParameterFilterId
+	RouteCreateBucket 			= "/bucket"
+	RouteStoreSynchronizedBlock = "/synchronized-block"
 )
 
 func (s *Server) setupRoutes(e *echo.Echo) {
@@ -54,6 +55,9 @@ func (s *Server) setupRoutes(e *echo.Echo) {
 			resp, err := s.checkIfObjectExists(params.BlockId, params.BucketName)
 			if err != nil {
 				return httpserver.JSONResponse(c, http.StatusBadRequest, fmt.Sprintf("%v", err))
+			}
+			if resp == true {
+				s.sendBlockIdToPeerCollectorForSynchronization(params.BlockId)
 			}
 			return httpserver.JSONResponse(c, http.StatusOK, &resp)
 		}
@@ -131,6 +135,21 @@ func (s *Server) setupRoutes(e *echo.Echo) {
 
 		return httpserver.JSONResponse(c, http.StatusOK, fmt.Sprintf("Subscription with id '%s' has stopped", filterId))
 	})
+	e.POST(RouteStoreSynchronizedBlock, func(c echo.Context) error {
+		var err error
+		s.apiLogStart(RouteStoreSynchronizedBlock)
+		defer s.apiLogEnd(RouteStoreSynchronizedBlock, err)
+
+		blockId, err := s.storeSynchronizedBlock(c)
+		if err != nil {
+			if len(blockId) > 0 {
+				return httpserver.JSONResponse(c, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+			} else {
+				return httpserver.JSONResponse(c, http.StatusBadRequest, fmt.Sprintf("%v", err))
+			}
+		}
+		return httpserver.JSONResponse(c, http.StatusOK, fmt.Sprintf("Successfully added Block '%s' to ObjectsInspectionList", blockId))
+	})
 }
 
 func (s *Server) getBlock(blockId string, bucketName string, c echo.Context) (*iotago.Block, error) {
@@ -174,6 +193,14 @@ func (s *Server) checkIfObjectExists(blockId string, bucketName string) (bool, e
 	} else {
 		return true, err
 	}
+}
+
+func (s *Server) sendBlockIdToPeerCollectorForSynchronization(blockId string) (bool, error) {
+	success, err := s.Collector.PeerCollectorHandler.SendObjectNameToPeerCollectorForSynchronization(blockId)
+	if err != nil || success != true {
+		s.Collector.Storage.UploadObjectNameToBucket(s.Collector.Storage.KeysToSendToPeerCollectorBucketName, blockId, s.Context)
+	}
+	return success, nil
 }
 
 func (s *Server) storeBlockFromTangle(c echo.Context) (string, string, error) {
@@ -229,6 +256,21 @@ func (s *Server) subscribeToTag(c echo.Context) (string, string, error) {
 	}
 
 	return filterId, request.Tag, nil
+}
+
+func (s *Server) storeSynchronizedBlock(c echo.Context) (string, error) {
+	var request RequestStoreSynchronizedBlock
+	err := extractRequestBody(&request, c)
+	if err != nil {
+		return "", err
+	}
+
+	err = s.Collector.Storage.UploadObjectNameToBucket(s.Collector.Storage.ObjectsInspectionListBucketName, request.BlockId, s.Context)
+	if err != nil {
+		return request.BlockId, err
+	}
+
+	return request.BlockId, nil
 }
 
 func (s *Server) createBucketFromRequest(c echo.Context) (string, error) {

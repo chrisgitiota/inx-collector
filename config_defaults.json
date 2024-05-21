@@ -37,11 +37,16 @@
         "defaultBucketExpirationDays": 30,
         "region": "eu-south-1",
         "objectExtension": "",
-        "secure": true
+        "secure": true,
+        "ObjectsInspectionListBucketName": "objects-inspection-list",
+        "KeysToSendToPeerCollectorBucketName": "keys-to-send-to-peer-collector"
     },
     "POI": {
         "hostUrl": "inx-poi:9687",
         "isPlugin": true
+    },
+    "peercollector": {
+        "hostUrl": "",
     },
     "listener": {
         "filters": ""
