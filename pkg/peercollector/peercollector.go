@@ -51,7 +51,7 @@ func (pc *PeerCollectorHandler) IsPeerCollectorUsed() (bool, error) {
 			return false, err
 		}
 		if ! (strings.HasPrefix(pc.APIUrl, "http") || strings.HasPrefix(pc.APIUrl, "https")) {
-			return false, errors.New("peercollector parameter APIUrl must start with scheme 'http://' or 'https://'")
+			return false, errors.New("peercollector parameter 'hostUrl' must start with scheme 'http://' or 'https://'")
 		}
 		if len(url.Path) > 0 {
 			return false, errors.New("peercollector parameter APIUrl must not contain a path")

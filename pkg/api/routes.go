@@ -135,21 +135,24 @@ func (s *Server) setupRoutes(e *echo.Echo) {
 
 		return httpserver.JSONResponse(c, http.StatusOK, fmt.Sprintf("Subscription with id '%s' has stopped", filterId))
 	})
-	e.POST(RouteStoreSynchronizedBlock, func(c echo.Context) error {
-		var err error
-		s.apiLogStart(RouteStoreSynchronizedBlock)
-		defer s.apiLogEnd(RouteStoreSynchronizedBlock, err)
+	peerCollectorIsUsed, err := s.Collector.PeerCollectorHandler.IsPeerCollectorUsed()
+	if err == nil && peerCollectorIsUsed {
+		e.POST(RouteStoreSynchronizedBlock, func(c echo.Context) error {
+			var err error
+			s.apiLogStart(RouteStoreSynchronizedBlock)
+			defer s.apiLogEnd(RouteStoreSynchronizedBlock, err)
 
-		blockId, err := s.storeSynchronizedBlock(c)
-		if err != nil {
-			if len(blockId) > 0 {
-				return httpserver.JSONResponse(c, http.StatusInternalServerError, fmt.Sprintf("%v", err))
-			} else {
-				return httpserver.JSONResponse(c, http.StatusBadRequest, fmt.Sprintf("%v", err))
+			blockId, err := s.storeSynchronizedBlock(c)
+			if err != nil {
+				if len(blockId) > 0 {
+					return httpserver.JSONResponse(c, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+				} else {
+					return httpserver.JSONResponse(c, http.StatusBadRequest, fmt.Sprintf("%v", err))
+				}
 			}
-		}
-		return httpserver.JSONResponse(c, http.StatusOK, fmt.Sprintf("Successfully added Block '%s' to ObjectsInspectionList", blockId))
-	})
+			return httpserver.JSONResponse(c, http.StatusOK, fmt.Sprintf("Successfully added Block '%s' to ObjectsInspectionList", blockId))
+		})
+	}
 }
 
 func (s *Server) getBlock(blockId string, bucketName string, c echo.Context) (*iotago.Block, error) {

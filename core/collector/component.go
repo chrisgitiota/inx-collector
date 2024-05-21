@@ -165,21 +165,27 @@ func run() error {
 
 
 	// create a background worker that handles the peercollector synchronization
-	if err := CoreComponent.Daemon().BackgroundWorker("PEERCOLLECTOR", func(ctx context.Context) {
-		CoreComponent.LogInfo("Start peercollector worker - waiting for collectorInitWait")
+	peerCollectorIsUsed, err := deps.Collector.PeerCollectorHandler.IsPeerCollectorUsed()
+	if err != nil {
+		CoreComponent.LogErrorfAndExit("Configuration for PeerCollector synchronization is erroneous: %s", err)
+	}
+	if peerCollectorIsUsed {
+		if err := CoreComponent.Daemon().BackgroundWorker("PEERCOLLECTOR", func(ctx context.Context) {
+			CoreComponent.LogInfo("Start peercollector worker - waiting for collectorInitWait")
 
-		// we need to wait until the collector is initialized
-		select {
-		case <-ctx.Done():
-			return
-		case <-collectorInitWait:
+			// we need to wait until the collector is initialized
+			select {
+			case <-ctx.Done():
+				return
+			case <-collectorInitWait:
+			}
+
+			go func() {
+				deps.Collector.PeerCollectorHandler.SynchronizationLoop(ctx, 30*time.Second)
+			}()
+		}, daemon.PriorityStopPeerCollectorSync); err != nil {
+			CoreComponent.LogPanicf("Failed to start PeerCollector Synchronization Loop: %s", err)
 		}
-
-		go func() {
-			deps.Collector.PeerCollectorHandler.SynchronizationLoop(ctx, 30*time.Second)
-		}()
-	}, daemon.PriorityStopPeerCollectorSync); err != nil {
-		CoreComponent.LogPanicf("Failed to start PeerCollector Synchronization Loop: %s", err)
 	}
 
 	return nil
