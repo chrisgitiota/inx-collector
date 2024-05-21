@@ -104,10 +104,15 @@ func (pc *PeerCollectorHandler) ValidateLocalObjectsInObjectsInspectionList(ctx 
 				continue
 			}
 			numObjectsSyncedFromPeerCollector += 1
-			// objectName.Key is not appended to keysToRemoveFromInspectionList here, so it will remain in the ObjectsInspectionList
-			// until the next ValidateLocalObjectsInObjectsInspectionList() run.
-			// When ValidateLocalObjectsInObjectsInspectionList() is run the next time the GetObjectTagging call will
-			// be successful and the objectName.Key will be removed from the ObjectsInspectionList.
+			// Please note:
+			// * objectName.Key is not appended to keysToRemoveFromInspectionList here, so it will remain in the ObjectsInspectionList
+			// 	 until the next ValidateLocalObjectsInObjectsInspectionList() run.
+			// 	 When ValidateLocalObjectsInObjectsInspectionList() is run the next time the GetObjectTagging call will
+			// 	 be successful and the objectName.Key will be removed from the ObjectsInspectionList.
+			// * In case of any error (GetObjectFromPeerCollector, UploadObject) the loop is continued.
+			//   This means during the next SynchronizePeerCollector run, there will be another attempt
+			//   to synchronize the object. This will be repeated until object synchronization is successful.
+			//   Currently there is no maximumTrials threshold.
 		} else {
 			keysToRemoveFromInspectionList = append(keysToRemoveFromInspectionList, objectName.Key)
 		}
@@ -123,7 +128,11 @@ func (pc *PeerCollectorHandler) ValidateLocalObjectsInObjectsInspectionList(ctx 
 	for _, objectName := range keysToRemoveFromInspectionList {
 		err := pc.Storage.DeleteObjectNameFromObjectsInspectionList(objectName, ctx)
 		if err != nil {
-			pc.WrappedLogger.LogErrorf("------------> PANIC - TODO: RETRIES ARE MISSING ---------. Error (%s)", err)
+			pc.WrappedLogger.LogErrorf("DeleteObjectNameFromObjectsInspectionList for ObjectName '%s' failed. Continuing keysToRemoveFromInspectionList loop", objectName, err)
+			// Ignoring this error means that the ObjectName remains in the ObjectsInspectionList
+			// and will be inspected again when SynchronizePeerCollector runs the next time.
+			// As ObjectsInspection is not very expensive, we do not have any error handling (like
+			// additional retrials) here.
 		} else {
 			pc.WrappedLogger.LogInfof("Object '%s' has been successfully validated and removed from ObjectsInspectionList", objectName)
 		}
