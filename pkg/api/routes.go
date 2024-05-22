@@ -199,7 +199,7 @@ func (s *Server) checkIfObjectExists(blockId string, bucketName string) (bool, e
 }
 
 func (s *Server) sendBlockIdToPeerCollectorForSynchronization(blockId string) (bool, error) {
-	success, err := s.Collector.PeerCollectorHandler.SendObjectNameToPeerCollectorForSynchronization(blockId)
+	success, err := s.Collector.PeerCollectorHandler.SendObjectNameToPeerCollectorForSynchronization(blockId, "RestApiStoreSynchronizedBlock")
 	if err != nil || success != true {
 		s.Collector.Storage.UploadObjectNameToBucket(s.Collector.Storage.KeysToSendToPeerCollectorBucketName, blockId, s.Context)
 	}

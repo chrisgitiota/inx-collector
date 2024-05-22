@@ -29,7 +29,7 @@ func NewPeerCollectorHandler(params Parameters, storage storage.Storage, log *lo
 	}
 }
 
-func (pc *PeerCollectorHandler) SendObjectNameToPeerCollectorForSynchronization(objectName string) (bool, error) {
+func (pc *PeerCollectorHandler) SendObjectNameToPeerCollectorForSynchronization(objectName string, logLabel string) (bool, error) {
 	bodyTemplate := `{"blockId": "%s"}`
 	body := bytes.NewBufferString(fmt.Sprintf(bodyTemplate, objectName))
 	resp, err := http.Post(pc.APIUrl + "/synchronized-block", "application/json", body)
@@ -37,10 +37,14 @@ func (pc *PeerCollectorHandler) SendObjectNameToPeerCollectorForSynchronization(
 		return false, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("POST synchronized-block '%v' to PeerCollector failed, status: %s", objectName, resp.Status)
+		err = fmt.Errorf("%s - POST synchronized-block '%v' to PeerCollector failed, status: %s",
+			logLabel,
+			objectName,
+			resp.Status,
+		)
 		return false, err
 	}
-	pc.WrappedLogger.LogInfof("POST synchronized-block '%v' to PeerCollector was SUCCESSFUL", objectName)
+	pc.WrappedLogger.LogInfof("%s - POST synchronized-block '%v' to PeerCollector was SUCCESSFUL", logLabel, objectName)
 	return true, nil
 }
 
@@ -149,7 +153,7 @@ func (pc *PeerCollectorHandler) SendKeysToPeerCollector(ctx context.Context) {
 			continue
 		}
 		keysToSendLength += 1
-		success, err := pc.SendObjectNameToPeerCollectorForSynchronization(key.Key)
+		success, err := pc.SendObjectNameToPeerCollectorForSynchronization(key.Key, "SendKeysToPeerCollector")
 		if err != nil {
 			pc.WrappedLogger.LogErrorf("SendObjectNameToPeerCollectorForSynchronization for key '%s' failed. Continuing SendKeysToPeerCollector loop . Error (%s)", key.Key, err)
 			continue
