@@ -117,18 +117,18 @@ func (c *Collector) manage_peer_collector_storage_buckets(ctx context.Context) e
 func (c *Collector) manage_storage_bucket(ctx context.Context, bucketName string) error {
 	exists, err := c.Storage.CheckCreateBucket(bucketName, ctx)
 	if err != nil {
-		c.WrappedLogger.LogErrorf("Can't istantiate storage : %w", err)
+		c.WrappedLogger.LogErrorf("Can't istantiate storage. CheckCreateBucket '%v' failed : %w", bucketName, err)
 		return err
 	}
 	if exists {
 		days, err := c.Storage.GetBucketExpirationDays(bucketName, ctx)
 		if err != nil {
-			c.WrappedLogger.LogErrorf("Can't istantiate storage : %w", err)
+			c.WrappedLogger.LogErrorf("Can't istantiate storage. GetBucketExpirationDays '%v' failed : %w", bucketName, err)
 			return err
 		}
 		if days != c.Storage.DefaultBucketExpirationDays {
-			err = fmt.Errorf("default bucket already exists, but expiration days are %d instead of the specified %d", days, c.Storage.DefaultBucketExpirationDays)
-			c.WrappedLogger.LogErrorf("Can't istantiate storage : %w", err)
+			err = fmt.Errorf("Bucket '%v' already exists, but expiration days are %d instead of the specified %d", bucketName, days, c.Storage.DefaultBucketExpirationDays)
+			c.WrappedLogger.LogErrorf("Can't istantiate storage. Expiration days mismatch : %w", err)
 			return err
 		}
 	} else {

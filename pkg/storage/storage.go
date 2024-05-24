@@ -100,16 +100,17 @@ func (s *Storage) SetBucketExpirationDays(bucketName string, days int, ctx conte
 
 func (s *Storage) GetBucketExpirationDays(bucketName string, ctx context.Context) (int, error) {
 
+	// days = 0 means that the bucket has no expiration
+	days := 0
 	config, err := s.client.GetBucketLifecycle(ctx, bucketName)
 	if err != nil {
 		s.WrappedLogger.LogInfof("Failed retrieving lifecycle for bucket '%s', error: %w", bucketName, err)
-	}
-	// days = 0 means that the bucket has no expiration
-	days := 0
-	for _, rule := range config.Rules {
-		if rule.ID == "expire-bucket" && rule.Status == "Enabled" {
-			days = int(rule.Expiration.Days)
-			break
+	} else {
+		for _, rule := range config.Rules {
+			if rule.ID == "expire-bucket" && rule.Status == "Enabled" {
+				days = int(rule.Expiration.Days)
+				break
+			}
 		}
 	}
 
