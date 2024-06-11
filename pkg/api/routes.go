@@ -35,6 +35,7 @@ const (
 	RouteGetBlock     			= "/block/:" + ParameterBlockID
 	RouteDeleteBlock  			= "/block/:" + ParameterBlockID
 	RouteStore        			= "/block"
+	RouteStoreTaggedData        = "/tagged-data/:" + ParameterBlockID
 	RouteSubscribe    			= "/filter"
 	RouteUnsubscribe  			= "/filter/:" + ParameterFilterId
 	RouteCreateBucket 			= "/bucket"
@@ -85,6 +86,22 @@ func (s *Server) setupRoutes(e *echo.Echo) {
 			return httpserver.JSONResponse(c, http.StatusBadRequest, fmt.Sprintf("%v", err))
 		}
 		return httpserver.JSONResponse(c, http.StatusOK, fmt.Sprintf("Block '%s' uploaded to bucket '%s'", blockId, bucketName))
+	})
+	e.POST(RouteStoreTaggedData, func(c echo.Context) error {
+		var err error
+		s.apiLogStart(RouteStoreTaggedData)
+		defer s.apiLogEnd(RouteStoreTaggedData, err)
+
+		params, err := s.parseObjectInput(c)
+		if err != nil {
+			return httpserver.JSONResponse(c, http.StatusBadRequest, fmt.Sprintf("%v", err))
+		}
+
+		err = s.storeTaggedData(c, params.BlockId, params.BucketName)
+		if err != nil {
+			return httpserver.JSONResponse(c, http.StatusBadRequest, fmt.Sprintf("%v", err))
+		}
+		return httpserver.JSONResponse(c, http.StatusOK, fmt.Sprintf("Block '%s' uploaded to bucket '%s'", params.BlockId, params.BucketName))
 	})
 	e.POST(RouteSubscribe, func(c echo.Context) error {
 		var err error
@@ -204,6 +221,40 @@ func (s *Server) sendBlockIdToPeerCollectorForSynchronization(blockId string) (b
 		s.Collector.Storage.UploadObjectNameToBucket(s.Collector.Storage.KeysToSendToPeerCollectorBucketName, blockId, s.Context)
 	}
 	return success, nil
+}
+
+func (s *Server) storeTaggedData(c echo.Context, blockId string, bucketName string) (error) {
+	var request RequestStoreTaggedDataBody
+	err := extractRequestBody(&request, c)
+	if err != nil {
+		return err
+	}
+
+	blockJsonBytes := []byte(fmt.Sprintf(`{
+        "protocolVersion": 2,
+        "parents": [],
+        "payload": {
+            "type": 5,
+            "tag": "0x%v",
+            "data": "0x%v"
+        },
+        "nonce": ""
+}`, request.Tag, request.Data))
+
+	block := &iotago.Block{}
+	err = json.Unmarshal(blockJsonBytes, block)
+	if err != nil {
+		return err
+	}
+
+	var object storage.Object
+	object.Block = block
+
+	err = s.Collector.Storage.UploadObject(blockId, bucketName, object, s.Context)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *Server) storeBlockFromTangle(c echo.Context) (string, string, error) {

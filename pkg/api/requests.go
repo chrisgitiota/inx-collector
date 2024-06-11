@@ -11,7 +11,7 @@ import (
 )
 
 type RequestConstraint interface {
-	RequestSubscribeBody | RequestStoreBody | RequestCreateBucket | RequestStoreSynchronizedBlock
+	RequestSubscribeBody | RequestStoreBody | RequestCreateBucket | RequestStoreSynchronizedBlock | RequestStoreTaggedDataBody
 }
 
 type RequestSubscribeBody struct {
@@ -26,11 +26,15 @@ type RequestStoreSynchronizedBlock struct {
 	BlockId    string `json:"blockId" validate:"required"`
 }
 
-
 type RequestStoreBody struct {
 	BlockId    string `json:"blockId" validate:"required"`
 	BucketName string `json:"bucketName"`
 	WithPOI    bool   `json:"withPOI"`
+}
+
+type RequestStoreTaggedDataBody struct {
+	Tag  string `json:"tag" validate:"required"`
+	Data  string `json:"data" validate:"required"`
 }
 
 type RequestCreateBucket struct {
